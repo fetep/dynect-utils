@@ -1,0 +1,84 @@
+#!/usr/bin/env ruby
+# Nagios plugin to monitor the status of IP addresses in a GSLB region.
+
+require "rubygems"
+require "bundler/setup"
+
+require "dynect_rest"
+require "trollop"
+
+progname = File.basename($0)
+
+opts = Trollop::options do
+  banner <<-EOF
+Usage: #{progname} [options] command [command opts]
+
+Possible sub-commands:
+
+  list
+    List all GSLB IPs
+
+  drain <address|label>
+    Set the serving mode to "no" for a GSLB address, identified by IP
+    address or label.
+
+Main options:
+EOF
+  banner ""
+
+  opt :customer, "Dynect customer name", :short => "-c", :type => :string,
+      :required => true
+  opt :user, "Dynect user name", :short => "-u", :type => :string,
+      :required => true
+  opt :pass, "Dynect password", :short => "-p", :type => :string,
+      :required => true
+  opt :zone, "Zone name", :short => "-z", :type => :string,
+      :required => true
+  opt :record, "GSLB record name", :short => "-r", :type => :string,
+      :required => true
+  opt :region, "GSLB region", :short => "-R", :type => :string,
+      :default => "global"
+
+end
+
+dyn = DynectRest.new(opts[:customer], opts[:user], opts[:pass], opts[:zone])
+
+command = ARGV.shift
+
+pool = dyn.get("GSLBRegionPoolEntry/#{opts[:zone]}/#{opts[:record]}/#{opts[:region]}/").collect { |p| p.sub("/REST/", "") }
+
+# Takes an IP or label.
+def find_address(dyn, pool, match)
+  pool.each do |path|
+    entry = dyn.get(path)
+    if entry["label"] == match or entry["address"] == match
+      return path, entry
+    end
+  end
+
+  raise "can't find GSLB entry with address or label matching #{match}"
+end
+
+case command
+when "list"
+  pool.each do |path|
+    entry = dyn.get(path)
+    puts "#{entry["label"]} | #{entry["address"]} | " \
+         "status=#{entry["status"]} | weight=#{entry["weight"]} | " \
+         "serve_mode=#{entry["serve_mode"]}"
+  end
+when "drain", "undrain"
+  match = ARGV.shift
+  if !match
+    Trollop::die "must specify an address to drain"
+  end
+  path, entry = find_address(dyn, pool, match)
+  serve_mode = (command == "drain") ? "no" : "obey"
+  res = dyn.put(path, {"serve_mode" => serve_mode})
+  puts "#{entry["address"]} serve_mode changed from #{entry["serve_mode"]} " \
+       "to #{res["serve_mode"]}"
+when nil
+  Trollop::die "must specify a command"
+else
+  Trollop::die "invalid command #{command}"
+end
