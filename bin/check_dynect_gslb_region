@@ -1,0 +1,51 @@
+#!/usr/bin/env ruby
+# Nagios plugin to monitor the status of IP addresses in a GSLB region.
+
+require "rubygems"
+require "bundler/setup"
+
+require "dynect_rest"
+require "pp"
+require "trollop"
+
+progname = File.basename($0)
+
+opts = Trollop::options do
+  opt :customer, "Dynect customer name", :short => "-c", :type => :string,
+      :required => true
+  opt :user, "Dynect user name", :short => "-u", :type => :string,
+      :required => true
+  opt :pass, "Dynect password", :short => "-p", :type => :string,
+      :required => true
+  opt :zone, "Zone name", :short => "-z", :type => :string,
+      :required => true
+  opt :record, "GSLB record name", :short => "-r", :type => :string,
+      :required => true
+  opt :region, "GSLB region", :short => "-R", :type => :string,
+      :default => "global"
+end
+
+dyn = DynectRest.new(opts[:customer], opts[:user], opts[:pass], opts[:zone])
+gslb = dyn.get("GSLB/#{opts[:zone]}/#{opts[:record]}")
+
+region = gslb["region"].select { |r| r["region_code"] == opts[:region] }.first
+if region.nil?
+  puts "UNKNOWN: can't find region #{region}"
+  exit 3
+end
+
+down = {}
+region["pool"].each do |address|
+  if address["status"] != "up"
+    down[address["address"]] = address["status"]
+  end
+end
+
+if down.length > 0
+  msg = down.collect { |addr, status| "#{addr}=#{status}" }.join("; ")
+  puts "CRITICAL: GSLB addresses unhealthy: #{msg}"
+  exit 2
+end
+
+puts "OK: all GSLB addresses are healthy"
+exit 0

@@ -1,0 +1,26 @@
+PATH
+  remote: .
+  specs:
+    dynect-utils (0.0.1)
+      dynect_rest
+      trollop
+
+GEM
+  remote: http://rubygems.org/
+  specs:
+    dynect_rest (0.4.0)
+      json
+      json
+      rest-client
+      rest-client
+    json (1.6.5)
+    mime-types (1.17.2)
+    rest-client (1.6.7)
+      mime-types (>= 1.16)
+    trollop (1.16.2)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  dynect-utils!
