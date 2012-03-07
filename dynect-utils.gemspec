@@ -7,7 +7,11 @@ Gem::Specification.new do |s|
   s.authors     = ["Pete Fritchman"]
   s.email       = ["petef@databits.net"]
   s.homepage    = "https://github.com/fetep/dynect-utils"
-  s.summary     = %q{Nagios plugin to monitor a DynECT GSLB region}
+  s.summary     = %q{Utilities to interact with the DynECT API}
+  s.description = %q{
+Utilities included: nagios plugin to check GSLB status, tool to manipulate
+the serving mode of GSLB addresses
+}
 
   s.rubyforge_project = "dynect-utils"
 
