@@ -5,6 +5,7 @@ require "rubygems"
 require "bundler/setup"
 
 require "dynect_rest"
+require "timeout"
 require "trollop"
 
 progname = File.basename($0)
@@ -22,10 +23,23 @@ opts = Trollop::options do
       :required => true
   opt :region, "GSLB region", :short => "-R", :type => :string,
       :default => "global"
+  opt :timeout, "Dynect API timeout", :short => "-t", :type => :integer,
+      :default => 10
 end
 
-dyn = DynectRest.new(opts[:customer], opts[:user], opts[:pass], opts[:zone])
-gslb = dyn.get("GSLB/#{opts[:zone]}/#{opts[:record]}")
+gslb = nil
+begin
+  Timeout::timeout(opts[:timeout]) do
+    dyn = DynectRest.new(opts[:customer], opts[:user], opts[:pass], opts[:zone])
+    gslb = dyn.get("GSLB/#{opts[:zone]}/#{opts[:record]}")
+  end
+rescue Timeout::Error, Errno::ENETUNREACH => e
+  puts "UNKNOWN: dynect api timed out (#{$!})"
+  exit 3
+rescue DynectRest::Exceptions::RequestFailed => e
+  puts "UNKNOWN: dynect api error, #{$!}"
+  exit 3
+end
 
 region = gslb["region"].select { |r| r["region_code"] == opts[:region] }.first
 if region.nil?

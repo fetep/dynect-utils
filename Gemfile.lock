@@ -8,7 +8,7 @@ PATH
 GEM
   remote: http://rubygems.org/
   specs:
-    dynect_rest (0.4.0)
+    dynect_rest (0.4.3)
       json
       json
       rest-client
